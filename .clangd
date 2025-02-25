@@ -1,0 +1,2 @@
+Index:
+  Background: IndexAll  # Index all files, even headers not directly compiled
