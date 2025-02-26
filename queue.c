@@ -37,7 +37,7 @@ bool q_insert_head(struct list_head *head, char *s)
     if (!new_node) {
         return false;  // Memory allocation failed
     }
-    new_node->data = s;
+    new_node->data = s;  // strdup(s) has memory leak
     if (!new_node->data) {
         free(new_node);
         return false;  // String duplication failed
@@ -53,6 +53,20 @@ bool q_insert_head(struct list_head *head, char *s)
 /* Insert an element at tail of queue */
 bool q_insert_tail(struct list_head *head, char *s)
 {
+    struct node *new_node = malloc(sizeof(struct node));
+    if (!new_node) {
+        return false;  // Memory allocation failed
+    }
+    new_node->data = s;  // strdup(s) has memory leak
+    if (!new_node->data) {
+        free(new_node);
+        return false;  // String duplication failed
+    }
+
+    new_node->list.next = head;
+    new_node->list.prev = head->prev;
+    head->prev->next = &new_node->list;
+    head->prev = &new_node->list;
     return true;
 }
 
