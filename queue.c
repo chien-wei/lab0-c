@@ -10,6 +10,10 @@
  *   cppcheck-suppress nullPointer
  */
 
+struct node {
+    char *data;
+    struct list_head list;
+};
 
 /* Create an empty queue */
 struct list_head *q_new()
@@ -29,10 +33,20 @@ void q_free(struct list_head *head)
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
 {
-    struct list_head *new_head = malloc(sizeof(struct list_head));
-    struct list_head *temp = head->next;
-    head->next = new_head;
-    new_head->next = temp;
+    struct node *new_node = malloc(sizeof(struct node));
+    if (!new_node) {
+        return false;  // Memory allocation failed
+    }
+    new_node->data = s;
+    if (!new_node->data) {
+        free(new_node);
+        return false;  // String duplication failed
+    }
+
+    new_node->list.next = head->next;
+    new_node->list.prev = head;
+    head->next->prev = &new_node->list;
+    head->next = &new_node->list;
     return true;
 }
 
@@ -87,7 +101,19 @@ void q_swap(struct list_head *head)
 }
 
 /* Reverse elements in queue */
-void q_reverse(struct list_head *head) {}
+void q_reverse(struct list_head *head)
+{
+    struct list_head *current = head;
+    struct list_head *temp;
+
+    do {
+        temp = current->next;
+        current->next = current->prev;
+        current->prev = temp;
+
+        current = temp;
+    } while (current != head);
+}
 
 /* Reverse the nodes of the list k at a time */
 void q_reverseK(struct list_head *head, int k)
