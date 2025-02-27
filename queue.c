@@ -27,7 +27,16 @@ struct list_head *q_new()
 /* Free all storage used by queue */
 void q_free(struct list_head *head)
 {
-    free(head);
+    struct list_head *current = head;
+    struct list_head *temp;
+
+    do {
+        temp = current->next;
+        struct node *n = list_entry(current, struct node, list);
+        free(n->data);
+        free(n);
+        current = temp;
+    } while (current != head);
 }
 
 /* Insert an element at head of queue */
@@ -37,7 +46,17 @@ bool q_insert_head(struct list_head *head, char *s)
     if (!new_node) {
         return false;  // Memory allocation failed
     }
-    new_node->data = s;  // strdup(s) has memory leak
+
+    char *copied_string;
+    copied_string = (char *) malloc(strlen(s) + 1);
+    if (copied_string == NULL) {
+        free(new_node);
+        return false;  // Memory allocation failed
+    }
+
+    strncpy(copied_string, s, strlen(s) + 1);
+
+    new_node->data = copied_string;
     if (!new_node->data) {
         free(new_node);
         return false;  // String duplication failed
@@ -57,7 +76,17 @@ bool q_insert_tail(struct list_head *head, char *s)
     if (!new_node) {
         return false;  // Memory allocation failed
     }
-    new_node->data = s;  // strdup(s) has memory leak
+
+    char *copied_string;
+    copied_string = (char *) malloc(strlen(s) + 1);
+    if (copied_string == NULL) {
+        free(new_node);
+        return false;  // Memory allocation failed
+    }
+
+    strncpy(copied_string, s, strlen(s) + 1);
+
+    new_node->data = copied_string;
     if (!new_node->data) {
         free(new_node);
         return false;  // String duplication failed
