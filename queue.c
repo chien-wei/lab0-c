@@ -10,10 +10,6 @@
  *   cppcheck-suppress nullPointer
  */
 
-struct node {
-    char *data;
-    struct list_head list;
-};
 
 /* Create an empty queue */
 struct list_head *q_new()
@@ -27,37 +23,42 @@ struct list_head *q_new()
 /* Free all storage used by queue */
 void q_free(struct list_head *head)
 {
-    struct list_head *current = head;
-    struct list_head *temp;
+    if (head->next == head) {
+        free(head);
+        return;
+    }
 
+    struct list_head *current = head->next;
+    struct list_head *temp;
     do {
         temp = current->next;
-        struct node *n = list_entry(current, struct node, list);
-        free(n->data);
-        free(n);
+        element_t *node = list_entry(current, element_t, list);
+        free(node->value);
+        free(node);
         current = temp;
     } while (current != head);
+    free(head);
 }
 
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
 {
-    struct node *new_node = malloc(sizeof(struct node));
+    element_t *new_node = malloc(sizeof(element_t));
     if (!new_node) {
         return false;  // Memory allocation failed
     }
 
-    char *copied_string;
-    copied_string = (char *) malloc(strlen(s) + 1);
-    if (copied_string == NULL) {
+    char *copied_string = (char *) malloc(strlen(s) + 1);
+    if (!copied_string) {
         free(new_node);
         return false;  // Memory allocation failed
     }
 
-    strncpy(copied_string, s, strlen(s) + 1);
+    strncpy(copied_string, s, strlen(s));
+    copied_string[strlen(s)] = '\0';
 
-    new_node->data = copied_string;
-    if (!new_node->data) {
+    new_node->value = copied_string;
+    if (!new_node->value) {
         free(new_node);
         return false;  // String duplication failed
     }
@@ -72,22 +73,23 @@ bool q_insert_head(struct list_head *head, char *s)
 /* Insert an element at tail of queue */
 bool q_insert_tail(struct list_head *head, char *s)
 {
-    struct node *new_node = malloc(sizeof(struct node));
+    element_t *new_node = malloc(sizeof(element_t));
     if (!new_node) {
         return false;  // Memory allocation failed
     }
 
     char *copied_string;
     copied_string = (char *) malloc(strlen(s) + 1);
-    if (copied_string == NULL) {
+    if (!copied_string) {
         free(new_node);
         return false;  // Memory allocation failed
     }
 
-    strncpy(copied_string, s, strlen(s) + 1);
+    strncpy(copied_string, s, strlen(s));
+    copied_string[strlen(s)] = '\0';
 
-    new_node->data = copied_string;
-    if (!new_node->data) {
+    new_node->value = copied_string;
+    if (!new_node->value) {
         free(new_node);
         return false;  // String duplication failed
     }
@@ -102,13 +104,59 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head) {
+        return NULL;
+    }
+
+    if (head->next == head) {
+        return NULL;
+    }
+
+    struct list_head *first = head->next;
+    element_t *node = list_entry(first, element_t, list);
+
+    /*sp = (char *) malloc(bufsize + 1);*/
+    /*if (sp == NULL) {*/
+    /*    return NULL;  // Memory allocation failed*/
+    /*}*/
+    strncpy(sp, node->value, bufsize);
+    sp[bufsize - 1] = '\0';
+
+    head->next = node->list.next;
+    head->next->prev = head;
+    node->list.next = NULL;
+    node->list.prev = NULL;
+
+    return node;
 }
 
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head) {
+        return NULL;
+    }
+
+    if (head->next == head) {
+        return NULL;
+    }
+
+    struct list_head *last = head->prev;
+    element_t *node = list_entry(last, element_t, list);
+
+    /*sp = (char *) malloc(bufsize + 1);*/
+    /*if (sp == NULL) {*/
+    /*    return NULL;  // Memory allocation failed*/
+    /*}*/
+    strncpy(sp, node->value, bufsize);
+    sp[bufsize - 1] = '\0';
+
+    head->prev = node->list.prev;
+    head->prev->next = head;
+    node->list.next = NULL;
+    node->list.prev = NULL;
+
+    return node;
 }
 
 /* Return number of elements in queue */
