@@ -196,7 +196,6 @@ bool q_delete_mid(struct list_head *head)
 
     return true;
 }
-
 /* Delete all nodes that have duplicate string */
 bool q_delete_dup(struct list_head *head)
 {
@@ -232,7 +231,44 @@ void q_reverseK(struct list_head *head, int k)
 }
 
 /* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend) {}
+void q_sort(struct list_head *head, bool descend)
+{
+    struct list_head *current = head->next;
+    struct list_head *temp;
+    bool need_sort = true;
+
+    while (need_sort && current != head) {
+        need_sort = false;
+
+        temp = current;
+        struct list_head *p1 = current;
+        struct list_head *p2 = current->next;
+        element_t *n1 = list_entry(p1, element_t, list);
+        element_t *n2 = list_entry(p2, element_t, list);
+        if (descend) {
+            if (n1->value < n2->value) {
+                // Swap p1, p2
+                p1->next = p2->next;
+                p1->prev = p2;
+                p2->prev = current;
+                p2->next = p1;
+                temp = p2;
+                need_sort = true;
+            }
+        } else {
+            if (n1->value > n2->value) {
+                // Swap p1, p2
+                p1->next = p2->next;
+                p1->prev = p2;
+                p2->prev = current;
+                p2->next = p1;
+                temp = p2;
+                need_sort = true;
+            }
+        }
+        current = temp->next;
+    }
+}
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
@@ -242,16 +278,16 @@ int q_ascend(struct list_head *head)
     return 0;
 }
 
-/* Remove every node which has a node with a strictly greater value anywhere to
- * the right side of it */
+/* Remove every node which has a node with a strictly greater value anywhere
+ * to the right side of it */
 int q_descend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
     return 0;
 }
 
-/* Merge all the queues into one sorted queue, which is in ascending/descending
- * order */
+/* Merge all the queues into one sorted queue, which is in
+ * ascending/descending order */
 int q_merge(struct list_head *head, bool descend)
 {
     // https://leetcode.com/problems/merge-k-sorted-lists/
