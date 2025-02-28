@@ -93,7 +93,7 @@ display_warnings() {
 
   echo
   echo -e "${RED}$(cat <<-EOF
-How to Write a Git Commit Message: https://chris.beams.io/posts/git-commit/
+Read https://github.com/sysprog21/lab0-c/blob/master/CONTRIBUTING.md#git-commit-style carefully.
 EOF
 )${NC}"
 }
@@ -122,6 +122,41 @@ read_commit_message() {
     break
 
   done < $COMMIT_MSG_FILE
+}
+
+# Get positions (line, column) for each target word in a multiline string.
+# Output format: "target: line"
+get_all_match_positions() {
+  local text="$1"
+  local targets="$2"
+  local start_line=1
+  local start_col=1
+
+  while IFS= read -r target; do
+    # search for the target string
+    local result
+    result=$(
+      awk -v t="$target" -v sl="$start_line" -v sc="$start_col" '{
+        if (NR < sl) next
+        pos = index(NR == sl ? substr($0, sc) : $0, t)
+        if (pos) {
+          print NR, (NR == sl ? pos + sc - 1 : pos)
+          exit
+        }
+      }' <<< "$text"
+    )
+
+    # skip if the target is not found
+    [ -z "$result" ] && continue
+    
+    # output and update states
+    local line col
+    read -r line col <<< "$result"
+    echo "$target: $line"
+    start_line="$line"
+    start_col=$((col + 1))
+
+  done <<< "$targets"
 }
 
 #
@@ -249,35 +284,77 @@ validate_commit_message() {
   # 6. Wrap the body at 72 characters
   # ------------------------------------------------------------------------------
 
-URL_REGEX='^[[:blank:]]*(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]'
+  URL_REGEX='^[[:blank:]]*(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]'
 
 # Ensure the commit message lines are loaded into an array.
 readarray -t COMMIT_MSG_LINES < "$COMMIT_MSG_FILE"
 
 for i in "${!COMMIT_MSG_LINES[@]}"; do
+  # Skip the first line (the subject) because the limit applies to the body.
+  if [ "$i" -eq 0 ]; then
+    continue
+  fi
+
   LINE="${COMMIT_MSG_LINES[$i]}"
+  
+  # Skip the line if it is a comment.
+  if [[ "$LINE" =~ ^[[:space:]]*# ]]; then
+    continue
+  fi
+
   # Trim leading and trailing whitespace.
   TRIMMED_LINE="${LINE#"${LINE%%[![:space:]]*}"}"
   TRIMMED_LINE="${TRIMMED_LINE%"${TRIMMED_LINE##*[![:space:]]}"}"
   LINE_NUMBER=$((i+1))
+  
   if [ "${#TRIMMED_LINE}" -gt 72 ] && ! [[ "$TRIMMED_LINE" =~ $URL_REGEX ]]; then
     add_warning "$LINE_NUMBER" "Wrap the body at 72 characters (${#TRIMMED_LINE} chars)"
   fi
 done
 
-  # 7. Use the body to explain what and why vs. how
+  # 7. Ensure the commit subject has more than one word.
   # ------------------------------------------------------------------------------
 
-  # 8. Do no write single worded commits
+  if [ "$(echo "${COMMIT_SUBJECT_TO_PROCESS}" | wc -w)" -le 1 ]; then
+    add_warning 1 "Do not write single-word commits. Provide a descriptive subject"
+  fi
+
+  # 7a. Avoid using C source filenames as the commit subject.
+  if [[ "${COMMIT_SUBJECT_TO_PROCESS}" =~ ^[_a-zA-Z0-9]+\.[ch]$ ]]; then
+    add_warning 1 "Avoid mentioning C source filenames in the commit subject"
+  fi
+
+  # 7b. Disallow parentheses in the commit subject.
+  if [[ ${COMMIT_SUBJECT_TO_PROCESS} =~ [\(\)] ]]; then
+    add_warning 1 "Avoid using parentheses '()' in commit subjects"
+  fi
+
+  # 7c. Alert if the commit subject starts with "Implementation"
+  # ------------------------------------------------------------------------------
+  if [[ "${COMMIT_SUBJECT_TO_PROCESS}" =~ ^(First|My|Implementation|Implementations|Creation|Modification|Queue) ]]; then
+    add_warning 1 "Commit subject should use imperative mood"
+  fi
+
+  # 7d. Alert if the commit subject uses the pattern "Implement of ..."
+  if [[ "${COMMIT_SUBJECT_TO_PROCESS}" =~ ^(Implement|Realize|Update|Finish|Code)[[:space:]]+of[[:space:]]+ ]]; then
+    add_warning 1 "Avoid using 'of' immediately after the verb"
+  fi
+
+  # 8. Use the body to explain what and why vs. how
   # ------------------------------------------------------------------------------
 
-  COMMIT_SUBJECT_WORDS=(${COMMIT_SUBJECT_TO_PROCESS})
-  test "${#COMMIT_SUBJECT_WORDS[@]}" -gt 1
-  test $? -eq 0 || add_warning 1 "Do no write single worded commits"
+  # Count non-comment, non-blank lines excluding "Change-Id:".
+  NON_COMMENT_COUNT=$(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d;/^[[:space:]]*Change-Id:/d' "${COMMIT_MSG_FILE}" | wc -l | xargs)
 
-  # 8a. Do not mention C source filenames
-  [[ ${COMMIT_SUBJECT_TO_PROCESS} =~ [_a-zA-Z0-9]+\.[ch]$ ]]
-  test $? -eq 1 || add_warning 1 "Avoid mentioning C source filenames"
+  # If queue.c is modified and the commit message is oversimplified, forbid generic subjects.
+  if git diff --cached --name-only | grep -Eq '(^|/)queue\.c$'; then
+    if [ "${NON_COMMENT_COUNT}" -le 1 ]; then
+      add_warning 1 "Commit message oversimplified. Use the commit message body to explain what and why."
+    fi
+    if [[ "${COMMIT_SUBJECT_TO_PROCESS}" =~ ^(Complete|Finish|Done)[[:space:]]+ ]]; then
+      add_warning 1 "Avoid using generic subjects starting with 'Complete', 'Finish', or 'Done'"
+    fi
+  fi
 
   # 9. Do not start the subject line with whitespace
   # ------------------------------------------------------------------------------
@@ -285,33 +362,62 @@ done
   [[ ${COMMIT_SUBJECT_TO_PROCESS} =~ ^[[:blank:]]+ ]]
   test $? -eq 1 || add_warning 1 "Do not start the subject line with whitespace"
 
-  # 10. Avoid single word commit messages in subject
+  # 10. Disallow backticks anywhere in the commit message.
   # ------------------------------------------------------------------------------
 
-  word_count=$(echo "$COMMIT_SUBJECT_TO_PROCESS" | wc -w)
-  test "$word_count" -gt 1
-  test $? -eq 0 || add_warning 1 "Commit subject should contain more than one word. Summarize your changes"
+  if sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "${COMMIT_MSG_FILE}" | grep -q "\`"; then
+    add_warning 1 "Avoid using backticks in commit messages"
+  fi
 
   # 11. Avoid commit subject that simply states a file update (e.g. "Update console.c")
   # ------------------------------------------------------------------------------
 
-  if [[ $COMMIT_SUBJECT_TO_PROCESS =~ ^Update[[:space:]]+([^[:space:]]+)$ ]]; then
-    candidate="${BASH_REMATCH[1]}"
+  if [[ "$COMMIT_SUBJECT_TO_PROCESS" =~ ^(Update|Modify|Change|Fix|Refine|Improve|Revise)[[:space:]]+([^[:space:]]+)$ ]]; then
+    candidate="${BASH_REMATCH[2]}"
     # Only warn if the candidate filename ends with .c or .h
-    if [[ $candidate =~ \.(c|h)$ ]]; then
-      add_warning 1 "Avoid using just a filename like '$candidate'. Provide a functional, meaningful description"
+    if [[ "$candidate" =~ \.(c|h)$ ]]; then
+      add_warning 1 "Avoid using just a filename like '$candidate'. Provide a functional, meaningful description"	    
     fi
   fi
 
   # 12. Avoid abusive language in commit message content
   # ------------------------------------------------------------------------------
 
-  FULL_COMMIT_MSG=$(sed '/^#/d;/^[[:space:]]*$/d' "$COMMIT_MSG_FILE")
+  FULL_COMMIT_MSG_WITH_SPACE=$(sed '/^#/d;/^[[:space:]]*Change-Id:/d' "$COMMIT_MSG_FILE" | \
+                               sed -E "s@${URL_REGEX#^}@@g")
+  FULL_COMMIT_MSG=$(echo "$FULL_COMMIT_MSG_WITH_SPACE" | sed '/^[[:space:]]*$/d')
+  
   # Extended list of abusive words (case-insensitive).
   # Adjust the list as needed.
   ABUSIVE_WORDS_REGEX='\b(fuck|fucking|dick|shit|bitch|asshole|cunt|motherfucker|damn|crap|dumbass|piss)\b'
   if echo "$FULL_COMMIT_MSG" | grep -Eiq "$ABUSIVE_WORDS_REGEX"; then
     add_warning 1 "Commit message contains inappropriate language. Avoid using abusive words"
+  fi
+
+  # 13. Always use American English.
+  # ------------------------------------------------------------------------------
+
+  # Alert if the commit message appears to be written in Chinese.
+  # This pattern matches any Chinese character (common CJK Unified Ideographs).
+  MISSPELLED_WORDS=$(echo "$FULL_COMMIT_MSG" | grep "[一-龥]")
+  if [ -n "$MISSPELLED_WORDS" ]; then
+    add_warning 1 "Commit message appears to be written in Chinese: $MISSPELLED_WORDS"
+  fi
+
+  MSG_FOR_SPELLCHECK_LINE_FINDING=$(echo "$FULL_COMMIT_MSG_WITH_SPACE" | sed -E \
+    -e "s/(['\"][^'\"]*['\"])//g" \
+    -e "s/\bcommit[[:space:]]+[0-9a-fA-F]{7,40}\b/commit/g")
+  MSG_FOR_SPELLCHECK=$(echo "$MSG_FOR_SPELLCHECK_LINE_FINDING" | sed '/^[[:space:]]*$/d')
+  
+  
+  # Use aspell to list misspelled words according to American English, ignoring quoted text.
+  MISSPELLED_WORDS=$(echo "$MSG_FOR_SPELLCHECK" | $ASPELL --lang=en --list --home-dir=scripts --personal=aspell-pws)
+  if [ -n "$MISSPELLED_WORDS" ]; then
+    results=$(get_all_match_positions "$MSG_FOR_SPELLCHECK_LINE_FINDING" "$MISSPELLED_WORDS")
+
+    while read -r result; do
+      add_warning "${result#*:}" "Avoid using non-American English words: ${result%%:*}"
+    done <<< "$results"
   fi
 }
 
