@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "list.h"
 
 #include "queue.h"
 
@@ -232,40 +233,44 @@ void q_reverseK(struct list_head *head, int k)
 /* Sort elements of queue in ascending/descending order */
 void q_sort(struct list_head *head, bool descend)
 {
-    struct list_head *current = head->next;
-    struct list_head *temp;
+    struct list_head *current;
+    struct list_head *p1;
+    struct list_head *p2;
     bool need_sort = true;
 
-    while (need_sort && current != head) {
+    while (need_sort) {
+        current = head;
         need_sort = false;
-
-        temp = current;
-        struct list_head *p1 = current;
-        struct list_head *p2 = current->next;
-        element_t *n1 = list_entry(p1, element_t, list);
-        element_t *n2 = list_entry(p2, element_t, list);
-        if (descend) {
-            if (n1->value < n2->value) {
-                // Swap p1, p2
-                p1->next = p2->next;
-                p1->prev = p2;
-                p2->prev = current;
-                p2->next = p1;
-                temp = p2;
-                need_sort = true;
+        do {
+            p1 = current->next;
+            p2 = current->next->next;
+            element_t *n1 = list_entry(p1, element_t, list);
+            element_t *n2 = list_entry(p2, element_t, list);
+            if (descend) {
+                if (strcmp(n1->value, n2->value) < 0) {
+                    // Swap p1, p2
+                    p2->prev = p1->prev;
+                    p1->prev->next = p2;
+                    p1->next = p2->next;
+                    p2->next->prev = p1;
+                    p2->next = p1;
+                    p1->prev = p2;
+                    need_sort = true;
+                }
+            } else {
+                if (strcmp(n1->value, n2->value) > 0) {
+                    // Swap p1, p2
+                    p2->prev = p1->prev;
+                    p1->prev->next = p2;
+                    p1->next = p2->next;
+                    p2->next->prev = p1;
+                    p2->next = p1;
+                    p1->prev = p2;
+                    need_sort = true;
+                }
             }
-        } else {
-            if (n1->value > n2->value) {
-                // Swap p1, p2
-                p1->next = p2->next;
-                p1->prev = p2;
-                p2->prev = current;
-                p2->next = p1;
-                temp = p2;
-                need_sort = true;
-            }
-        }
-        current = temp->next;
+            current = current->next;
+        } while (current->next != head && current->next->next != head);
     }
 }
 
