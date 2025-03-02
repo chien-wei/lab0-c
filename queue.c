@@ -200,6 +200,40 @@ bool q_delete_mid(struct list_head *head)
 bool q_delete_dup(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/
+    struct list_head *p1 = head->next;
+    struct list_head *p2 = head->next->next;
+    while (p1 != head && p2 != head) {
+        bool is_dup = false;
+        element_t *n1 = list_entry(p1, element_t, list);
+        element_t *n2 = list_entry(p2, element_t, list);
+        while (strcmp(n2->value, n1->value) == 0) {
+            is_dup = true;
+            // delete n2
+            p2->next->prev = p1;
+            p1->next = p2->next;
+            free(n2->value);
+            free(n2);
+            p2 = p1->next;
+            if (p2 == head) {
+                break;
+            }
+            n2 = list_entry(p2, element_t, list);
+        }
+
+        if (is_dup) {
+            // delete n1
+            p1->prev->next = p2;
+            p2->prev = p1->prev;
+            free(n1->value);
+            free(n1);
+        }
+        if (p2 == head) {
+            break;
+        }
+        p1 = p2;
+        p2 = p1->next;
+    }
+
     return true;
 }
 
@@ -293,7 +327,30 @@ void q_sort(struct list_head *head, bool descend)
 int q_ascend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    q_reverse(head);
+    struct list_head *p1 = head->next;
+    struct list_head *p2 = head->next->next;
+    while (p1 != head && p2 != head) {
+        element_t *n1 = list_entry(p1, element_t, list);
+        element_t *n2 = list_entry(p2, element_t, list);
+        while (strcmp(n2->value, n1->value) > 0) {
+            // delete n2
+            p2->next->prev = p1;
+            p1->next = p2->next;
+            free(n2->value);
+            free(n2);
+            p2 = p1->next;
+            if (p2 == head) {
+                break;
+            }
+            n2 = list_entry(p2, element_t, list);
+        }
+        p1 = p2;
+        p2 = p1->next;
+    }
+    q_reverse(head);
+
+    return q_size(head);
 }
 
 /* Remove every node which has a node with a strictly greater value anywhere
@@ -301,7 +358,30 @@ int q_ascend(struct list_head *head)
 int q_descend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    q_reverse(head);
+    struct list_head *p1 = head->next;
+    struct list_head *p2 = head->next->next;
+    while (p1 != head && p2 != head) {
+        element_t *n1 = list_entry(p1, element_t, list);
+        element_t *n2 = list_entry(p2, element_t, list);
+        while (strcmp(n2->value, n1->value) < 0) {
+            // delete n2
+            p2->next->prev = p1;
+            p1->next = p2->next;
+            free(n2->value);
+            free(n2);
+            p2 = p1->next;
+            if (p2 == head) {
+                break;
+            }
+            n2 = list_entry(p2, element_t, list);
+        }
+        p1 = p2;
+        p2 = p1->next;
+    }
+    q_reverse(head);
+
+    return q_size(head);
 }
 
 void merge_two_list(struct list_head *a, struct list_head *b, bool descend)
