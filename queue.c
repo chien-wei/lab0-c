@@ -290,10 +290,117 @@ int q_descend(struct list_head *head)
     return 0;
 }
 
+void merge_two_list(struct list_head *a, struct list_head *b, bool descend)
+{
+    struct list_head *b_current = b->next;
+    struct list_head *a_1 = a;
+    struct list_head *a_2 = a->next;
+
+    do {  // loop for b
+        element_t *na_2 = list_entry(a_2, element_t, list);
+        element_t *nb_current = list_entry(b_current, element_t, list);
+        /*printf("%s %s\n", na_2->value, nb_current->value);*/
+        if (descend) {
+            // loop for a
+            while (a_2 != a && strcmp(na_2->value, nb_current->value) > 0) {
+                a_1 = a_2;
+                a_2 = a_2->next;
+                na_2 = list_entry(a_2, element_t, list);
+            }
+            // remove b_current
+            b_current->next->prev = b_current->prev;
+            b_current->prev->next = b_current->next;
+
+            // insert b_current between a_1, a_2
+            b_current->next = a_2;
+            b_current->prev = a_1;
+            a_1->next = b_current;
+            a_2->prev = b_current;
+
+            // move pointer
+            a_1 = b_current;
+            b_current = b->next;
+        } else {
+            // loop for a
+            while (a_2 != a && strcmp(na_2->value, nb_current->value) < 0) {
+                /*printf("%s %s\n", na_2->value, nb_current->value);*/
+                a_1 = a_2;
+                a_2 = a_2->next;
+                na_2 = list_entry(a_2, element_t, list);
+            }
+            // remove b_current
+            b_current->next->prev = b_current->prev;
+            b_current->prev->next = b_current->next;
+
+            // insert b_current between a_1, a_2
+            b_current->next = a_2;
+            b_current->prev = a_1;
+            a_1->next = b_current;
+            a_2->prev = b_current;
+
+            // move pointer
+            a_1 = b_current;
+            b_current = b->next;
+        }
+    } while (b_current != b);
+}
+
 /* Merge all the queues into one sorted queue, which is in
  * ascending/descending order */
 int q_merge(struct list_head *head, bool descend)
 {
-    // https://leetcode.com/problems/merge-k-sorted-lists/
-    return 0;
+    // Allocation is disallowed in this function.
+    // 	q_remove_head with insertion is not practical here.
+    // TODO: how to use pq then?
+
+    // Have to read the Declaration to know the type to sort was queue_contex_t
+    // But maybe struct list_head imply this function can be used on type other
+    // than queue_contex_t?
+
+    /*typedef struct {*/
+    /*    struct list_head *q;*/
+    /*    struct list_head chain;*/
+    /*    int size;*/
+    /*    int id;*/
+    /*} queue_contex_t;*/
+
+    // merge second to last queue into the first
+    queue_contex_t *first = NULL;
+    queue_contex_t *node;
+
+    // got this error when I use list_for_each_entry
+    // list_for_each_entry (node, head, chain) {
+    /*Running static analysis...*/
+    /*queue.c:371:5: style: Label 'int' is not used. [unusedLabel]*/
+    /*    list_for_each_entry (node, head, chain) {*/
+    /*    ^*/
+    /**/
+    /*Fail to pass static analysis.*/
+
+    struct list_head *li;
+    list_for_each (li, head) {
+        node = list_entry(li, queue_contex_t, chain);
+        if (node->id == 0) {
+            first = node;
+            continue;
+        }
+
+        // merge node to first
+        merge_two_list(first->q, node->q, descend);
+
+        // debug
+        /*element_t *n;*/
+        /*list_for_each_entry (n, first->q, list) {*/
+        /*    printf("%s ", n->value);*/
+        /*}*/
+        /*printf("\n");*/
+
+        // There is no need to free the 'queue_contex_t' and its member 'q'
+        // since they will be released externally. However, q_merge() is
+        // responsible for making the queues to be NULL-queue, except the first
+        // one.
+        /*node->q = NULL;*/
+    }
+
+    return q_size(first->q);
 }
