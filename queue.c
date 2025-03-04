@@ -15,6 +15,9 @@
 struct list_head *q_new()
 {
     struct list_head *queue = malloc(sizeof(struct list_head));
+    while (!queue) {
+        queue = malloc(sizeof(struct list_head));
+    }
     queue->next = queue;
     queue->prev = queue;
     return queue;
@@ -333,6 +336,9 @@ void q_sort(struct list_head *head, bool descend)
         do {
             p1 = current->next;
             p2 = current->next->next;
+            if (p1 == head || p2 == head) {
+                break;
+            }
             element_t *n1 = list_entry(p1, element_t, list);
             element_t *n2 = list_entry(p2, element_t, list);
             if (descend) {
