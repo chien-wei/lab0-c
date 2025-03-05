@@ -322,51 +322,89 @@ void q_reverseK(struct list_head *head, int k)
     } while (current->next != head);
 }
 
+void merge_two_list(struct list_head *a, struct list_head *b, bool descend)
+{
+    struct list_head *b_current = b->next;
+    struct list_head *a_1 = a;
+    struct list_head *a_2 = a->next;
+
+    do {  // loop for b
+        element_t *na_2 = list_entry(a_2, element_t, list);
+        element_t *nb_current = list_entry(b_current, element_t, list);
+        /*printf("%s %s\n", na_2->value, nb_current->value);*/
+        if (descend) {
+            // loop for a
+            while (a_2 != a && strcmp(na_2->value, nb_current->value) > 0) {
+                a_1 = a_2;
+                a_2 = a_2->next;
+                na_2 = list_entry(a_2, element_t, list);
+            }
+            // remove b_current
+            b_current->next->prev = b_current->prev;
+            b_current->prev->next = b_current->next;
+
+            // insert b_current between a_1, a_2
+            b_current->next = a_2;
+            b_current->prev = a_1;
+            a_1->next = b_current;
+            a_2->prev = b_current;
+
+            // move pointer
+            a_1 = b_current;
+            b_current = b->next;
+        } else {
+            // loop for a
+            while (a_2 != a && strcmp(na_2->value, nb_current->value) <= 0) {
+                /*printf("%s %s\n", na_2->value, nb_current->value);*/
+                a_1 = a_2;
+                a_2 = a_2->next;
+                na_2 = list_entry(a_2, element_t, list);
+            }
+            // remove b_current
+            b_current->next->prev = b_current->prev;
+            b_current->prev->next = b_current->next;
+
+            // insert b_current between a_1, a_2
+            b_current->next = a_2;
+            b_current->prev = a_1;
+            a_1->next = b_current;
+            a_2->prev = b_current;
+
+            // move pointer
+            a_1 = b_current;
+            b_current = b->next;
+        }
+    } while (b_current != b);
+}
+
 /* Sort elements of queue in ascending/descending order */
 void q_sort(struct list_head *head, bool descend)
 {
-    struct list_head *current;
-    struct list_head *p1;
-    struct list_head *p2;
-    bool need_sort = true;
-
-    while (need_sort) {
-        current = head;
-        need_sort = false;
-        do {
-            p1 = current->next;
-            p2 = current->next->next;
-            if (p1 == head || p2 == head) {
-                break;
-            }
-            element_t *n1 = list_entry(p1, element_t, list);
-            element_t *n2 = list_entry(p2, element_t, list);
-            if (descend) {
-                if (strcmp(n1->value, n2->value) < 0) {
-                    // Swap p1, p2
-                    p2->prev = p1->prev;
-                    p1->prev->next = p2;
-                    p1->next = p2->next;
-                    p2->next->prev = p1;
-                    p2->next = p1;
-                    p1->prev = p2;
-                    need_sort = true;
-                }
-            } else {
-                if (strcmp(n1->value, n2->value) > 0) {
-                    // Swap p1, p2
-                    p2->prev = p1->prev;
-                    p1->prev->next = p2;
-                    p1->next = p2->next;
-                    p2->next->prev = p1;
-                    p2->next = p1;
-                    p1->prev = p2;
-                    need_sort = true;
-                }
-            }
-            current = current->next;
-        } while (current->next != head && current->next->next != head);
+    if (!head || head->next == head || head->next->next == head) {
+        return;
     }
+
+    struct list_head *fast = head->next;
+    struct list_head *slow = head;
+
+    while (fast != head && fast->next != head) {
+        fast = fast->next->next;
+        slow = slow->next;
+    }
+
+    LIST_HEAD(new_head);
+    new_head.next = slow->next;
+    new_head.prev = head->prev;
+    slow->next->prev = &new_head;
+    head->prev->next = &new_head;
+
+    slow->next = head;
+    head->prev = slow;
+
+
+    q_sort(head, descend);
+    q_sort(&new_head, descend);
+    merge_two_list(head, &new_head, descend);
 }
 
 /* Remove every node which has a node with a strictly less value anywhere to
@@ -431,60 +469,6 @@ int q_descend(struct list_head *head)
     return q_size(head);
 }
 
-void merge_two_list(struct list_head *a, struct list_head *b, bool descend)
-{
-    struct list_head *b_current = b->next;
-    struct list_head *a_1 = a;
-    struct list_head *a_2 = a->next;
-
-    do {  // loop for b
-        element_t *na_2 = list_entry(a_2, element_t, list);
-        element_t *nb_current = list_entry(b_current, element_t, list);
-        /*printf("%s %s\n", na_2->value, nb_current->value);*/
-        if (descend) {
-            // loop for a
-            while (a_2 != a && strcmp(na_2->value, nb_current->value) > 0) {
-                a_1 = a_2;
-                a_2 = a_2->next;
-                na_2 = list_entry(a_2, element_t, list);
-            }
-            // remove b_current
-            b_current->next->prev = b_current->prev;
-            b_current->prev->next = b_current->next;
-
-            // insert b_current between a_1, a_2
-            b_current->next = a_2;
-            b_current->prev = a_1;
-            a_1->next = b_current;
-            a_2->prev = b_current;
-
-            // move pointer
-            a_1 = b_current;
-            b_current = b->next;
-        } else {
-            // loop for a
-            while (a_2 != a && strcmp(na_2->value, nb_current->value) < 0) {
-                /*printf("%s %s\n", na_2->value, nb_current->value);*/
-                a_1 = a_2;
-                a_2 = a_2->next;
-                na_2 = list_entry(a_2, element_t, list);
-            }
-            // remove b_current
-            b_current->next->prev = b_current->prev;
-            b_current->prev->next = b_current->next;
-
-            // insert b_current between a_1, a_2
-            b_current->next = a_2;
-            b_current->prev = a_1;
-            a_1->next = b_current;
-            a_2->prev = b_current;
-
-            // move pointer
-            a_1 = b_current;
-            b_current = b->next;
-        }
-    } while (b_current != b);
-}
 
 /* Merge all the queues into one sorted queue, which is in
  * ascending/descending order */
