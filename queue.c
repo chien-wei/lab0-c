@@ -107,25 +107,19 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    if (!head) {
+    if (!head || head->next == head) {
         return NULL;
     }
 
-    if (head->next == head) {
-        return NULL;
+    element_t *node = list_first_entry(head, element_t, list);
+
+    // Consider input argument may fail on allocation
+    if (sp && node->value) {
+        strncpy(sp, node->value, bufsize);
+        sp[bufsize - 1] = '\0';
     }
 
-    struct list_head *first = head->next;
-    element_t *node = list_entry(first, element_t, list);
-
-    /*sp = (char *) malloc(bufsize + 1);*/
-    /*if (sp == NULL) {*/
-    /*    return NULL;  // Memory allocation failed*/
-    /*}*/
-    strncpy(sp, node->value, bufsize);
-    sp[bufsize - 1] = '\0';
-
-    head->next = node->list.next;
+    head->next = head->next->next;
     head->next->prev = head;
     node->list.next = NULL;
     node->list.prev = NULL;
@@ -136,25 +130,19 @@ element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    if (!head) {
+    if (!head || head->next == head) {
         return NULL;
     }
 
-    if (head->next == head) {
-        return NULL;
+    element_t *node = list_last_entry(head, element_t, list);
+
+    // Consider input argument may fail on allocation
+    if (sp && node->value) {
+        strncpy(sp, node->value, bufsize);
+        sp[bufsize - 1] = '\0';
     }
 
-    struct list_head *last = head->prev;
-    element_t *node = list_entry(last, element_t, list);
-
-    /*sp = (char *) malloc(bufsize + 1);*/
-    /*if (sp == NULL) {*/
-    /*    return NULL;  // Memory allocation failed*/
-    /*}*/
-    strncpy(sp, node->value, bufsize);
-    sp[bufsize - 1] = '\0';
-
-    head->prev = node->list.prev;
+    head->prev = head->prev->prev;
     head->prev->next = head;
     node->list.next = NULL;
     node->list.prev = NULL;
